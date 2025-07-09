@@ -2,7 +2,7 @@
 
 [![Github Actions Status](https://github.com/liuji1031/git_lock_sign_jlx/workflows/Build/badge.svg)](https://github.com/liuji1031/git_lock_sign_jlx/actions/workflows/build.yml)
 
-A JupyterLab extension.
+A JupyterLab extension to let the user sign and lock jupyter notebook (or cells) with git commit signatures.
 
 ## Requirements
 
