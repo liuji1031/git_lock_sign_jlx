@@ -1,0 +1,5 @@
+{
+  "packageManager": "python",
+  "packageName": "git_lock_sign_jlx",
+  "uninstallInstructions": "Use your Python package manager (pip, conda, etc.) to uninstall the package git_lock_sign_jlx"
+}

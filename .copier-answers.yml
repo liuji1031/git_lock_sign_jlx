@@ -1,0 +1,19 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: v4.3.8
+_src_path: https://github.com/jupyterlab/extension-template
+author_email: ji.liu@axleinfo.com
+author_name: Ji Liu
+data_format: string
+file_extension: ''
+has_binder: false
+has_settings: true
+kind: frontend
+labextension_name: git_lock_sign_jlx
+mimetype: ''
+mimetype_name: ''
+project_short_description: A JupyterLab extension.
+python_name: git_lock_sign_jlx
+repository: https://github.com/liuji1031/git_lock_sign_jlx
+test: true
+viewer_name: ''
+
