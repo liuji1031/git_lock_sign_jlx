@@ -2049,7 +2049,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/apputils@npm:^4.5.4":
+"@jupyterlab/apputils@npm:^4.0.0, @jupyterlab/apputils@npm:^4.5.4":
   version: 4.5.4
   resolution: "@jupyterlab/apputils@npm:4.5.4"
   dependencies:
@@ -2133,7 +2133,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/cells@npm:^4.4.4":
+"@jupyterlab/cells@npm:^4.0.0, @jupyterlab/cells@npm:^4.4.4":
   version: 4.4.4
   resolution: "@jupyterlab/cells@npm:4.4.4"
   dependencies:
@@ -2235,7 +2235,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/coreutils@npm:^6.4.4":
+"@jupyterlab/coreutils@npm:^6.0.0, @jupyterlab/coreutils@npm:^6.4.4":
   version: 6.4.4
   resolution: "@jupyterlab/coreutils@npm:6.4.4"
   dependencies:
@@ -2379,7 +2379,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/notebook@npm:^4.4.4":
+"@jupyterlab/notebook@npm:^4.0.0, @jupyterlab/notebook@npm:^4.4.4":
   version: 4.4.4
   resolution: "@jupyterlab/notebook@npm:4.4.4"
   dependencies:
@@ -2482,7 +2482,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/services@npm:^7.4.4":
+"@jupyterlab/services@npm:^7.0.0, @jupyterlab/services@npm:^7.4.4":
   version: 7.4.4
   resolution: "@jupyterlab/services@npm:7.4.4"
   dependencies:
@@ -2860,7 +2860,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@lumino/disposable@npm:^1.10.0 || ^2.0.0, @lumino/disposable@npm:^2.1.4":
+"@lumino/disposable@npm:^1.10.0 || ^2.0.0, @lumino/disposable@npm:^2.0.0, @lumino/disposable@npm:^2.1.4":
   version: 2.1.4
   resolution: "@lumino/disposable@npm:2.1.4"
   dependencies:
@@ -2921,7 +2921,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@lumino/signaling@npm:^1.10.0 || ^2.0.0, @lumino/signaling@npm:^2.1.4":
+"@lumino/signaling@npm:^1.10.0 || ^2.0.0, @lumino/signaling@npm:^2.0.0, @lumino/signaling@npm:^2.1.4":
   version: 2.1.4
   resolution: "@lumino/signaling@npm:2.1.4"
   dependencies:
@@ -2940,7 +2940,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@lumino/widgets@npm:^1.37.2 || ^2.7.1, @lumino/widgets@npm:^2.7.1":
+"@lumino/widgets@npm:^1.37.2 || ^2.7.1, @lumino/widgets@npm:^2.0.0, @lumino/widgets@npm:^2.7.1":
   version: 2.7.1
   resolution: "@lumino/widgets@npm:2.7.1"
   dependencies:
@@ -5533,9 +5533,17 @@ __metadata:
   resolution: "git_lock_sign_jlx@workspace:."
   dependencies:
     "@jupyterlab/application": ^4.0.0
+    "@jupyterlab/apputils": ^4.0.0
     "@jupyterlab/builder": ^4.0.0
+    "@jupyterlab/cells": ^4.0.0
+    "@jupyterlab/coreutils": ^6.0.0
+    "@jupyterlab/notebook": ^4.0.0
+    "@jupyterlab/services": ^7.0.0
     "@jupyterlab/settingregistry": ^4.0.0
     "@jupyterlab/testutils": ^4.0.0
+    "@lumino/disposable": ^2.0.0
+    "@lumino/signaling": ^2.0.0
+    "@lumino/widgets": ^2.0.0
     "@types/jest": ^29.2.0
     "@types/json-schema": ^7.0.11
     "@types/react": ^18.0.26
@@ -5549,6 +5557,8 @@ __metadata:
     jest: ^29.2.0
     npm-run-all2: ^7.0.1
     prettier: ^3.0.0
+    react: ^18.0.0
+    react-dom: ^18.0.0
     rimraf: ^5.0.1
     source-map-loader: ^1.0.2
     style-loader: ^3.3.1
@@ -5558,6 +5568,7 @@ __metadata:
     stylelint-csstree-validator: ^3.0.0
     stylelint-prettier: ^4.0.0
     typescript: ~5.0.2
+    webpack: ^5.0.0
     yjs: ^13.5.0
   languageName: unknown
   linkType: soft
@@ -8011,7 +8022,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-dom@npm:^18.2.0":
+"react-dom@npm:^18.0.0, react-dom@npm:^18.2.0":
   version: 18.3.1
   resolution: "react-dom@npm:18.3.1"
   dependencies:
@@ -8037,7 +8048,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react@npm:>=17.0.0 <19.0.0, react@npm:^18.2.0":
+"react@npm:>=17.0.0 <19.0.0, react@npm:^18.0.0, react@npm:^18.2.0":
   version: 18.3.1
   resolution: "react@npm:18.3.1"
   dependencies:
@@ -9517,7 +9528,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"webpack@npm:^5.76.1":
+"webpack@npm:^5.0.0, webpack@npm:^5.76.1":
   version: 5.100.0
   resolution: "webpack@npm:5.100.0"
   dependencies:

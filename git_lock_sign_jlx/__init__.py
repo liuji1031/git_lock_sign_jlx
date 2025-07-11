@@ -14,3 +14,18 @@ def _jupyter_labextension_paths():
         "src": "labextension",
         "dest": "git_lock_sign_jlx"
     }]
+
+
+def _jupyter_server_extension_points():
+    """Entry point for the server extension."""
+    from .extension import GitLockSignExtension
+    return [
+        {
+            "module": "git_lock_sign_jlx.extension",
+            "app": GitLockSignExtension,
+        }
+    ]
+
+
+# For backward compatibility
+_jupyter_server_extension_paths = _jupyter_server_extension_points

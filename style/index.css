@@ -1,1 +1,134 @@
 @import url('base.css');
+@import url('user-info.css');
+@import url('commit-button.css');
+
+/* Git Lock Sign Extension Styles */
+
+/* Lock button styling */
+.git-lock-sign-button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  margin-left: 8px;
+  border: 1px solid var(--jp-border-color1);
+  border-radius: 3px;
+  background: var(--jp-layout-color1);
+  color: var(--jp-ui-font-color1);
+  font-size: var(--jp-ui-font-size1);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.git-lock-sign-button:hover {
+  background: var(--jp-layout-color2);
+  border-color: var(--jp-border-color2);
+}
+
+.git-lock-sign-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.git-lock-sign-button.locked {
+  background: var(--jp-warn-color3);
+  border-color: var(--jp-warn-color1);
+  color: var(--jp-warn-color0);
+}
+
+.git-lock-sign-button.locked:hover {
+  background: var(--jp-warn-color2);
+}
+
+.git-lock-sign-button.loading {
+  opacity: 0.8;
+}
+
+.git-lock-sign-button .jp-Icon {
+  width: 16px;
+  height: 16px;
+}
+
+.git-lock-sign-button .button-text {
+  font-weight: 500;
+}
+
+.git-lock-sign-button .error-indicator {
+  color: var(--jp-error-color1);
+  font-size: 12px;
+}
+
+/* Locked cell styling */
+.git-lock-sign-locked {
+  position: relative;
+  opacity: 0.8;
+  background: var(--jp-layout-color2) !important;
+  border-left: 4px solid var(--jp-warn-color1) !important;
+}
+
+.git-lock-sign-locked .jp-InputArea {
+  background: var(--jp-layout-color3) !important;
+}
+
+.git-lock-sign-locked .jp-InputArea-editor {
+  background: var(--jp-layout-color3) !important;
+  cursor: not-allowed !important;
+}
+
+.git-lock-sign-locked .jp-OutputArea {
+  background: var(--jp-layout-color2) !important;
+}
+
+/* Lock indicator styling */
+.git-lock-sign-indicator {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 12px;
+  background: var(--jp-warn-color3);
+  border: 1px solid var(--jp-warn-color1);
+  border-radius: 3px;
+  padding: 2px 4px;
+  z-index: 100;
+  pointer-events: none;
+}
+
+/* Widget container styling */
+.git-lock-sign-lock-button-widget {
+  display: flex;
+  align-items: center;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .git-lock-sign-button .button-text {
+    display: none;
+  }
+  
+  .git-lock-sign-button {
+    padding: 4px;
+  }
+}
+
+/* Dark theme adjustments */
+[data-jp-theme-light="false"] .git-lock-sign-locked {
+  background: var(--jp-layout-color0) !important;
+}
+
+[data-jp-theme-light="false"] .git-lock-sign-locked .jp-InputArea {
+  background: var(--jp-layout-color1) !important;
+}
+
+[data-jp-theme-light="false"] .git-lock-sign-locked .jp-InputArea-editor {
+  background: var(--jp-layout-color1) !important;
+}
+
+/* Animation for loading state */
+@keyframes git-lock-sign-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.git-lock-sign-button.loading .jp-CircularProgressIcon {
+  animation: git-lock-sign-spin 1s linear infinite;
+}
