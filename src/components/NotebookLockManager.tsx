@@ -28,9 +28,34 @@ export class NotebookLockManager implements INotebookLockManager, IDisposable {
   private _stateChanged = new Signal<this, void>(this);
   public notificationSignal = new Signal<this, { msg: string; type: 'success' | 'error' }>(this);
 
+  // Disabled keyboard shortcuts when notebook is locked
+  private _disabledShortcuts = [
+    // Cell creation and structure
+    { key: 'Enter', ctrlKey: false, shiftKey: false, altKey: false, description: 'Enter edit mode' },
+    { key: 'a', ctrlKey: false, shiftKey: false, altKey: false, description: 'Insert cell above' },
+    { key: 'b', ctrlKey: false, shiftKey: false, altKey: false, description: 'Insert cell below' },
+    { key: 'm', ctrlKey: false, shiftKey: false, altKey: false, description: 'Change to Markdown' },
+    { key: 'y', ctrlKey: false, shiftKey: false, altKey: false, description: 'Change to code' },
+    
+    // Cell selection and manipulation
+    { key: 'ArrowUp', ctrlKey: false, shiftKey: true, altKey: false, description: 'Extend selection up' },
+    { key: 'ArrowDown', ctrlKey: false, shiftKey: true, altKey: false, description: 'Extend selection down' },
+    { key: 'a', ctrlKey: true, shiftKey: false, altKey: false, description: 'Select all cells' },
+    { key: 'x', ctrlKey: false, shiftKey: false, altKey: false, description: 'Cut cell' },
+    { key: 'c', ctrlKey: false, shiftKey: false, altKey: false, description: 'Copy cell' },
+    { key: 'v', ctrlKey: false, shiftKey: false, altKey: false, description: 'Paste cell' },
+    { key: 'm', ctrlKey: false, shiftKey: true, altKey: false, description: 'Merge cells' },
+    { key: 'd', ctrlKey: false, shiftKey: false, altKey: false, description: 'Delete cell (first D)' },
+    { key: 'z', ctrlKey: false, shiftKey: false, altKey: false, description: 'Undo cell action' },
+    
+    // Kernel operations
+    { key: '0', ctrlKey: false, shiftKey: false, altKey: false, description: 'Restart kernel (first 0)' }
+  ];
+
   constructor(notebookPanel: NotebookPanel) {
     this._notebookPanel = notebookPanel;
     this._setupEventListeners();
+    this._setupKeyboardOverrides();
     this._checkInitialStatus();
   }
 
@@ -273,6 +298,10 @@ export class NotebookLockManager implements INotebookLockManager, IDisposable {
       this._applyCellLocking(false);
     }
 
+    // Remove keyboard event listener
+    document.removeEventListener('keydown', this._handleKeyDown, true);
+    console.log('🎹 Keyboard override system disposed');
+
     // Clear references
     this._signatureMetadata = null;
     Signal.clearData(this);
@@ -371,6 +400,12 @@ export class NotebookLockManager implements INotebookLockManager, IDisposable {
     cells.forEach((cell: Cell) => {
       this._applyCellLockState(cell, locked);
     });
+
+    // Also disable/enable notebook operations
+    this._disableNotebookOperations(locked);
+    
+    // Also disable/enable individual cell action buttons
+    this._disableCellActionButtons(locked);
   }
 
   /**
@@ -419,9 +454,6 @@ export class NotebookLockManager implements INotebookLockManager, IDisposable {
         (input as HTMLInputElement).disabled = true;
       });
       
-      // Add lock indicator
-      this._addLockIndicator(cell);
-      
       console.log(`✅ Cell locked - readOnly: ${cell.readOnly}, class added: ${cell.node.classList.contains('git-lock-sign-locked')}`);
     } else {
       // Remove locked styling and make editable
@@ -462,41 +494,266 @@ export class NotebookLockManager implements INotebookLockManager, IDisposable {
         (input as HTMLInputElement).disabled = false;
       });
       
-      // Remove lock indicator
-      this._removeLockIndicator(cell);
-      
       console.log(`✅ Cell unlocked - readOnly: ${cell.readOnly}, class removed: ${!cell.node.classList.contains('git-lock-sign-locked')}`);
     }
   }
 
+
   /**
-   * Add visual lock indicator to a cell.
+   * Set up keyboard override system to disable shortcuts when locked.
    */
-  private _addLockIndicator(cell: Cell): void {
-    // Check if indicator already exists
-    if (cell.node.querySelector('.git-lock-sign-indicator')) {
+  private _setupKeyboardOverrides(): void {
+    // Add event listener to capture keyboard events before JupyterLab processes them
+    document.addEventListener('keydown', this._handleKeyDown, true);
+    console.log('🎹 Keyboard override system initialized');
+  }
+
+  /**
+   * Handle keydown events to block disabled shortcuts when notebook is locked.
+   */
+  private _handleKeyDown = (event: KeyboardEvent): void => {
+    // Only intercept if this notebook is locked and focused
+    if (!this._isLocked || this._isDisposed) {
       return;
     }
 
-    const indicator = document.createElement('div');
-    indicator.className = 'git-lock-sign-indicator';
-    indicator.innerHTML = '🔒';
-    indicator.title = 'This cell is locked and signed';
-    
-    // Add to cell header
-    const cellHeader = cell.node.querySelector('.jp-Cell-inputWrapper');
-    if (cellHeader) {
-      cellHeader.appendChild(indicator);
+    // Check if the event is targeting this notebook
+    if (!this._isEventTargetingThisNotebook(event)) {
+      return;
+    }
+
+    // Check if this is a disabled shortcut
+    const disabledShortcut = this._findDisabledShortcut(event);
+    if (disabledShortcut) {
+      console.log(`🚫 Blocking disabled shortcut: ${disabledShortcut.description}`);
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      
+      // Show user feedback
+      this._showShortcutBlockedMessage(disabledShortcut.description);
+      return;
+    }
+
+    // Special handling for double-key shortcuts (DD for delete, 00 for restart)
+    this._handleDoubleKeyShortcuts(event);
+  };
+
+  /**
+   * Check if the keyboard event is targeting this notebook.
+   */
+  private _isEventTargetingThisNotebook(event: KeyboardEvent): boolean {
+    const target = event.target as HTMLElement;
+    if (!target) return false;
+
+    // Check if the event target is within this notebook panel
+    return this._notebookPanel.node.contains(target);
+  }
+
+  /**
+   * Find if the current key combination matches a disabled shortcut.
+   */
+  private _findDisabledShortcut(event: KeyboardEvent): any {
+    return this._disabledShortcuts.find(shortcut => {
+      return (
+        shortcut.key.toLowerCase() === event.key.toLowerCase() &&
+        shortcut.ctrlKey === event.ctrlKey &&
+        shortcut.shiftKey === event.shiftKey &&
+        shortcut.altKey === event.altKey
+      );
+    });
+  }
+
+  /**
+   * Handle double-key shortcuts like DD (delete) and 00 (restart kernel).
+   */
+  private _handleDoubleKeyShortcuts(event: KeyboardEvent): void {
+    // This is a simplified implementation - in a full implementation,
+    // you'd need to track the timing and sequence of key presses
+    if (event.key === 'd' || event.key === '0') {
+      // For now, just block these keys entirely when locked
+      console.log(`🚫 Blocking potential double-key shortcut: ${event.key}`);
+      event.preventDefault();
+      event.stopPropagation();
+      this._showShortcutBlockedMessage(`Key '${event.key}' (potential double-key shortcut)`);
     }
   }
 
   /**
-   * Remove visual lock indicator from a cell.
+   * Show a message to the user when a shortcut is blocked.
    */
-  private _removeLockIndicator(cell: Cell): void {
-    const indicator = cell.node.querySelector('.git-lock-sign-indicator');
-    if (indicator) {
-      indicator.remove();
+  private _showShortcutBlockedMessage(shortcutDescription: string): void {
+    // Create a temporary notification
+    const notification = document.createElement('div');
+    notification.className = 'git-lock-sign-shortcut-blocked';
+    notification.innerHTML = `🔒 Shortcut blocked: ${shortcutDescription}`;
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: var(--jp-warn-color3);
+      border: 1px solid var(--jp-warn-color1);
+      border-radius: 4px;
+      padding: 8px 12px;
+      z-index: 10000;
+      font-size: 12px;
+      color: var(--jp-warn-color0);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    `;
+
+    document.body.appendChild(notification);
+
+    // Remove after 2 seconds
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification);
+      }
+    }, 2000);
+  }
+
+  /**
+   * Disable notebook toolbar buttons when locked.
+   */
+  private _disableNotebookOperations(disabled: boolean): void {
+    if (!this._notebookPanel.content) {
+      return;
+    }
+
+    console.log(`${disabled ? '🚫' : '✅'} ${disabled ? 'Disabling' : 'Enabling'} notebook operations...`);
+
+    // Disable toolbar buttons by finding them in the DOM
+    const toolbarNode = this._notebookPanel.toolbar.node;
+    const toolbarButtons = toolbarNode.querySelectorAll('button, .jp-ToolbarButton');
+    
+    toolbarButtons.forEach(button => {
+      const buttonElement = button as HTMLElement;
+      const title = buttonElement.title || buttonElement.getAttribute('data-command') || '';
+      
+      // Check if this is a button we want to disable
+      const shouldDisable = title.toLowerCase().includes('insert') ||
+                           title.toLowerCase().includes('cut') ||
+                           title.toLowerCase().includes('copy') ||
+                           title.toLowerCase().includes('paste') ||
+                           title.toLowerCase().includes('delete') ||
+                           buttonElement.className.includes('insert') ||
+                           buttonElement.className.includes('cut') ||
+                           buttonElement.className.includes('copy') ||
+                           buttonElement.className.includes('paste');
+      
+      if (shouldDisable) {
+        if (disabled) {
+          buttonElement.style.opacity = '0.5';
+          buttonElement.style.pointerEvents = 'none';
+          buttonElement.setAttribute('data-original-title', buttonElement.title);
+          buttonElement.title = 'Disabled - notebook is locked';
+        } else {
+          buttonElement.style.opacity = '';
+          buttonElement.style.pointerEvents = '';
+          const originalTitle = buttonElement.getAttribute('data-original-title');
+          if (originalTitle) {
+            buttonElement.title = originalTitle;
+            buttonElement.removeAttribute('data-original-title');
+          }
+        }
+      }
+    });
+
+    // Disable context menus on cells
+    const cells = this._notebookPanel.content.widgets;
+    cells.forEach(cell => {
+      if (disabled) {
+        cell.node.addEventListener('contextmenu', this._blockContextMenu, true);
+      } else {
+        cell.node.removeEventListener('contextmenu', this._blockContextMenu, true);
+      }
+    });
+  }
+
+  /**
+   * Block context menu events on locked cells.
+   */
+  private _blockContextMenu = (event: MouseEvent): void => {
+    if (this._isLocked) {
+      event.preventDefault();
+      event.stopPropagation();
+      this._showShortcutBlockedMessage('Context menu');
+    }
+  };
+
+  /**
+   * Disable notebook actions when locked - expanded to cover entire notebook including "Click to add cell" area.
+   */
+  private _disableCellActionButtons(disabled: boolean): void {
+    if (!this._notebookPanel.content) {
+      return;
+    }
+
+    console.log(`${disabled ? '🚫' : '✅'} ${disabled ? 'Blocking' : 'Unblocking'} notebook actions...`);
+
+    if (disabled) {
+      // Block clicks on the entire notebook container to catch "Click to add cell" area
+      this._notebookPanel.content.node.addEventListener('click', this._blockNotebookClicks, true);
+      console.log('🚫 Added click blocker to entire notebook container');
+    } else {
+      // Remove notebook-level click blocker
+      this._notebookPanel.content.node.removeEventListener('click', this._blockNotebookClicks, true);
+      console.log('✅ Removed click blocker from notebook container');
     }
   }
+
+  /**
+   * Block all interactive actions within the notebook when locked - including "Click to add cell" area.
+   */
+  private _blockNotebookClicks = (event: MouseEvent): void => {
+    if (!this._isLocked) {
+      return;
+    }
+
+    const target = event.target as HTMLElement;
+    if (!target) {
+      return;
+    }
+
+    // Check for various types of interactive elements
+    const isBlockableAction = 
+      // Regular buttons and toolbars
+      target.closest('button') ||
+      target.closest('.jp-ToolbarButton') ||
+      target.closest('.jp-Button') ||
+      target.closest('[role="button"]') ||
+      target.closest('.jp-Cell-toolbar') ||
+      target.closest('[data-command]') ||
+      
+      // "Click to add cell" area and related elements
+      target.closest('.jp-Notebook-footer') ||
+      target.closest('.jp-Notebook-addCellButton') ||
+      target.classList.contains('jp-Notebook-footer') ||
+      target.classList.contains('jp-Notebook-addCellButton') ||
+      
+      // Check for add-cell functionality by attributes
+      (target.getAttribute('title') && target.getAttribute('title')!.toLowerCase().includes('add')) ||
+      (target.getAttribute('aria-label') && target.getAttribute('aria-label')!.toLowerCase().includes('add')) ||
+      
+      // Check for click-to-add areas by class patterns
+      target.className.includes('add') ||
+      target.className.includes('Add') ||
+      
+      // Check parent elements for add-cell functionality
+      target.parentElement?.className.includes('add') ||
+      target.parentElement?.getAttribute('title')?.toLowerCase().includes('add');
+
+    if (isBlockableAction) {
+      console.log('🚫 Blocking notebook action click:', {
+        className: target.className,
+        title: target.title,
+        ariaLabel: target.getAttribute('aria-label'),
+        tagName: target.tagName
+      });
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      this._showShortcutBlockedMessage('Notebook action blocked');
+    }
+  };
+
 }

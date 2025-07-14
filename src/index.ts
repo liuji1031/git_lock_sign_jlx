@@ -14,6 +14,7 @@ import { LockButtonWidget } from './components/LockButton';
 import { CommitButtonWidget } from './components/CommitButton';
 import { NotebookLockManager } from './components/NotebookLockManager';
 import { UserInfoDisplayWidget } from './components/UserInfoDisplay';
+import { NotebookLockIndicatorWidget } from './components/NotebookLockIndicator';
 import '../style/commit-button.css';
 
 /**
@@ -36,15 +37,24 @@ class GitLockSignExtension implements DocumentRegistry.IWidgetExtension<Notebook
     // Create user info display widget (includes refresh button)
     const userInfoDisplay = new UserInfoDisplayWidget(panel);
     
+    // Create notebook lock indicator widget
+    const lockIndicator = new NotebookLockIndicatorWidget();
+    
     // Create commit button widget
     const commitButton = new CommitButtonWidget(panel);
     
     // Create lock button widget with manager reference
     const lockButton = new LockButtonWidget(panel, undefined, manager);
     
+    // Connect lock indicator to manager state changes
+    manager.stateChanged.connect(() => {
+      lockIndicator.updateStatus(manager.isLocked, manager.signatureMetadata);
+    });
+    
     // Add widgets to toolbar in the new layout:
-    // [Git User: John Doe <john@example.com>] [🔄 Refresh] ... [Commit] [Lock]
+    // [Git User: John Doe <john@example.com>] [🔄 Refresh] ... [🔒 Locked] [Commit] [Lock]
     panel.toolbar.insertItem(9, 'gitUserInfo', userInfoDisplay);
+    panel.toolbar.insertItem(11, 'gitLockIndicator', lockIndicator);
     panel.toolbar.insertItem(12, 'gitCommit', commitButton);
     panel.toolbar.insertItem(13, 'gitLockSign', lockButton);
 
@@ -53,6 +63,7 @@ class GitLockSignExtension implements DocumentRegistry.IWidgetExtension<Notebook
       manager.dispose();
       this._managers.delete(context.path);
       userInfoDisplay.dispose();
+      lockIndicator.dispose();
       commitButton.dispose();
       lockButton.dispose();
     });

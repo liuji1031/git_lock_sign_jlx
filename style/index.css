@@ -149,14 +149,104 @@
   position: absolute;
   top: 4px;
   right: 4px;
-  font-size: 12px;
+  font-size: 14px;
   background: var(--jp-warn-color3);
   border: 1px solid var(--jp-warn-color1);
   border-radius: 3px;
-  padding: 2px 4px;
+  padding: 2px 6px;
   z-index: 100;
   pointer-events: none;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  font-weight: bold;
 }
+
+/* Shortcut blocked notification styling */
+.git-lock-sign-shortcut-blocked {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: var(--jp-warn-color3);
+  border: 1px solid var(--jp-warn-color1);
+  border-radius: 4px;
+  padding: 8px 12px;
+  z-index: 10000;
+  font-size: 12px;
+  color: var(--jp-warn-color0);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  animation: git-lock-sign-notification-slide-in 0.3s ease-out;
+}
+
+@keyframes git-lock-sign-notification-slide-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Disabled toolbar button styling */
+.jp-Toolbar button[disabled],
+.jp-ToolbarButton[disabled] {
+  opacity: 0.5 !important;
+  pointer-events: none !important;
+  cursor: not-allowed !important;
+}
+
+/* Enhanced locked notebook styling */
+.git-lock-sign-locked-notebook {
+  border: 2px solid var(--jp-warn-color1);
+  border-radius: 4px;
+  background: rgba(255, 193, 7, 0.05);
+}
+
+/* Locked notebook header indicator */
+.git-lock-sign-notebook-header {
+  background: var(--jp-warn-color3);
+  border-bottom: 1px solid var(--jp-warn-color1);
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--jp-warn-color0);
+  text-align: center;
+  font-weight: bold;
+}
+
+/* Notebook lock indicator widget styling */
+.git-lock-sign-notebook-indicator-widget {
+  display: flex;
+  align-items: center;
+  margin-right: 8px;
+}
+
+.git-lock-sign-notebook-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--jp-warn-color3);
+  border: 1px solid var(--jp-warn-color1);
+  border-radius: 3px;
+  color: var(--jp-warn-color0);
+  font-size: 12px;
+  font-weight: bold;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.git-lock-sign-notebook-indicator .lock-icon {
+  font-size: 14px;
+}
+
+.git-lock-sign-notebook-indicator .lock-text {
+  font-weight: 600;
+}
+
+/* Hide notebook indicator when not locked */
+.git-lock-sign-notebook-indicator-widget:empty {
+  display: none;
+}
+
 
 /* Widget container styling */
 .git-lock-sign-lock-button-widget {
