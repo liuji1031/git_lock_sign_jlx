@@ -12,6 +12,7 @@ import { gitLockSignAPI } from '../services/api';
 import {
   ILockButtonState
 } from '../types';
+import { NotebookLockManager } from './NotebookLockManager';
 
 /**
  * State for the lock button dialog.
@@ -28,14 +29,17 @@ interface ILockDialogState {
 interface ILockButtonProps {
   notebookPanel: NotebookPanel;
   onStateChange?: (state: ILockButtonState) => void;
+  lockManager?: NotebookLockManager;
 }
+
 
 /**
  * React component for the lock/unlock button.
  */
 const LockButtonComponent: React.FC<ILockButtonProps> = ({
   notebookPanel,
-  onStateChange
+  onStateChange,
+  lockManager
 }) => {
   const [state, setState] = useState<ILockButtonState>({
     locked: false,
@@ -49,6 +53,7 @@ const LockButtonComponent: React.FC<ILockButtonProps> = ({
     commitMessage: '',
     isProcessing: false
   });
+
 
   // Update parent component when state changes
   useEffect(() => {
@@ -164,32 +169,48 @@ const LockButtonComponent: React.FC<ILockButtonProps> = ({
       
       const unlockResponse = await gitLockSignAPI.unlockNotebook(notebookPath, notebookContent);
       
-      if (unlockResponse.success) {
+      if (unlockResponse.success && unlockResponse.metadata) {
         setState(prev => ({
           ...prev,
-          locked: false,
-          signatureInfo: null,
+          locked: unlockResponse.metadata?.locked || false,
+          signatureInfo: unlockResponse.metadata || null,
           loading: false
         }));
         
         // Remove read-only styling from cells
         applyCellStyling(false);
-        console.log('Notebook unlocked successfully');
+        
+        // Reload the notebook to show the updated metadata
+        await reloadNotebook();
+        
+        // CRITICAL: Notify NotebookLockManager about successful unlock
+        if (lockManager) {
+          console.log('🎯 [LockButton] Notifying NotebookLockManager about successful unlock...');
+          await lockManager.handleUnlockSuccess();
+        } else {
+          console.warn('⚠️ [LockButton] No lockManager available - cells may not be properly unlocked');
+        }
+        
+        // Show success popup similar to lock operation
+        const metadata = unlockResponse.metadata;
+        const unlockInfo = metadata.unlocked_by_user_name && metadata.unlock_timestamp
+          ? `\nUnlocked by: ${metadata.unlocked_by_user_name} at ${new Date(metadata.unlock_timestamp).toLocaleString()}`
+          : '';
+        
+        alert(`Notebook unlocked successfully!\nCommit: ${unlockResponse.commit_hash?.substring(0, 8)}\nSigned: ${unlockResponse.was_gpg_signed ? 'Yes' : 'No'}\nLocked: No${unlockInfo}`);
         
       } else {
+        const errorMessage = unlockResponse.error || 'Failed to unlock notebook';
         setState(prev => ({
           ...prev,
-          error: unlockResponse.error || 'Failed to unlock notebook',
+          error: errorMessage,
           loading: false
         }));
         
-        showErrorMessage(
-          'Unlock Error',
-          unlockResponse.error || 'Failed to unlock notebook'
-        );
+        showErrorMessage('Unlock Error', errorMessage);
       }
-    } catch (error) {
-      const errorMessage = `Error unlocking notebook: ${error}`;
+    } catch (error: any) {
+      const errorMessage = `Error unlocking notebook: ${error.message}`;
       setState(prev => ({
         ...prev,
         error: errorMessage,
@@ -271,7 +292,8 @@ const LockButtonComponent: React.FC<ILockButtonProps> = ({
       // Step 3: Call backend to lock notebook (backend will commit AND lock in one operation)
       console.log('Calling backend to lock and commit notebook...');
       const lockResponse = await gitLockSignAPI.lockNotebook(notebookPath, updatedNotebookContent, dialogState.commitMessage.trim());
-
+      console.log('Lock response:', lockResponse);
+      console.log('Calling reloadNotebook...')
       if (lockResponse.success) {
         setState(prev => ({
           ...prev,
@@ -283,8 +305,18 @@ const LockButtonComponent: React.FC<ILockButtonProps> = ({
         // Apply read-only styling to cells
         applyCellStyling(true);
 
+        console.log('Calling reloadNotebook...')
+
         // Reload notebook to sync with updated metadata from backend
         await reloadNotebook();
+
+        // CRITICAL: Notify NotebookLockManager about successful lock
+        if (lockManager && lockResponse.metadata) {
+          console.log('🎯 [LockButton] Notifying NotebookLockManager about successful lock...');
+          await lockManager.handleLockSuccess(lockResponse.metadata);
+        } else {
+          console.warn('⚠️ [LockButton] No lockManager available or no metadata - cells may not be properly locked');
+        }
 
         // Show success message
         alert(`Notebook locked and committed successfully!\nCommit: ${lockResponse.commit_hash?.substring(0, 8)}\nSigned: ${lockResponse.signed ? 'Yes' : 'No'}\nLocked: Yes`);
@@ -389,14 +421,33 @@ const LockButtonComponent: React.FC<ILockButtonProps> = ({
    */
   const reloadNotebook = async (): Promise<void> => {
     try {
-      console.log('Reloading notebook to sync with backend metadata changes...');
+      console.log('🔄 [Git Lock Sign] STARTING notebook reload to sync with backend metadata changes...');
+      console.log('🔄 [Git Lock Sign] Notebook path:', notebookPanel.context.path);
       
-      // Use JupyterLab's context to reload the notebook from disk
-      await notebookPanel.context.revert();
+      // Try multiple reload approaches
+      try {
+        // Method 1: Use context.revert() to reload from disk
+        console.log('🔄 [Git Lock Sign] Attempting context.revert()...');
+        await notebookPanel.context.revert();
+        console.log('✅ [Git Lock Sign] context.revert() completed successfully');
+      } catch (revertError) {
+        console.warn('⚠️ [Git Lock Sign] context.revert() failed, trying alternative method:', revertError);
+        
+        // Method 2: Try context.reload() if available
+        if ('reload' in notebookPanel.context && typeof notebookPanel.context.reload === 'function') {
+          console.log('🔄 [Git Lock Sign] Attempting context.reload()...');
+          await (notebookPanel.context as any).reload();
+          console.log('✅ [Git Lock Sign] context.reload() completed successfully');
+        } else {
+          console.warn('⚠️ [Git Lock Sign] context.reload() not available');
+          throw revertError;
+        }
+      }
       
-      console.log('Notebook reloaded successfully');
+      console.log('✅ [Git Lock Sign] Notebook reloaded successfully - metadata should now be synchronized');
     } catch (error) {
-      console.warn('Failed to reload notebook, but operation was successful:', error);
+      console.error('❌ [Git Lock Sign] Failed to reload notebook, but git operation was successful:', error);
+      console.log('ℹ️ [Git Lock Sign] You may see a "file has changed" popup - this is expected if reload failed');
       // Don't throw error - the operation was successful, reload is just for UX
     }
   };
@@ -447,9 +498,13 @@ const LockButtonComponent: React.FC<ILockButtonProps> = ({
    * Get button title (tooltip) text.
    */
   const getButtonTitle = (): string => {
-    if (state.locked && state.signatureInfo) {
-      const info = state.signatureInfo;
-      return `Locked by ${info.user_name} (${info.user_email}) at ${new Date(info.timestamp).toLocaleString()}`;
+    if (state.signatureInfo) {
+      const info = state.signatureInfo as any; // Cast to any to access new properties
+      if (state.locked) {
+        return `Locked by ${info.user_name} (${info.user_email}) at ${new Date(info.timestamp).toLocaleString()}`;
+      } else if (info.unlocked_by_user_name) {
+        return `Unlocked by ${info.unlocked_by_user_name} at ${new Date(info.unlock_timestamp).toLocaleString()}`;
+      }
     }
     return state.locked ? 'Unlock notebook' : 'Lock and sign notebook';
   };
@@ -481,14 +536,17 @@ const LockButtonComponent: React.FC<ILockButtonProps> = ({
 export class LockButtonWidget extends ReactWidget {
   private _notebookPanel: NotebookPanel;
   private _onStateChange?: (state: ILockButtonState) => void;
+  private _lockManager?: NotebookLockManager;
 
   constructor(
     notebookPanel: NotebookPanel,
-    onStateChange?: (state: ILockButtonState) => void
+    onStateChange?: (state: ILockButtonState) => void,
+    lockManager?: NotebookLockManager
   ) {
     super();
     this._notebookPanel = notebookPanel;
     this._onStateChange = onStateChange;
+    this._lockManager = lockManager;
     this.addClass('git-lock-sign-lock-button-widget');
   }
 
@@ -497,6 +555,7 @@ export class LockButtonWidget extends ReactWidget {
       <LockButtonComponent
         notebookPanel={this._notebookPanel}
         onStateChange={this._onStateChange}
+        lockManager={this._lockManager}
       />
     );
   }

@@ -39,8 +39,8 @@ class GitLockSignExtension implements DocumentRegistry.IWidgetExtension<Notebook
     // Create commit button widget
     const commitButton = new CommitButtonWidget(panel);
     
-    // Create lock button widget
-    const lockButton = new LockButtonWidget(panel);
+    // Create lock button widget with manager reference
+    const lockButton = new LockButtonWidget(panel, undefined, manager);
     
     // Add widgets to toolbar in the new layout:
     // [Git User: John Doe <john@example.com>] [🔄 Refresh] ... [Commit] [Lock]

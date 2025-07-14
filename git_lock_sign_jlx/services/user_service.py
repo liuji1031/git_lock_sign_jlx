@@ -1,17 +1,18 @@
 """
 Service for extracting git user information.
 """
-
+import os
 import logging
 import subprocess
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 
 import git
 from git.exc import GitCommandError, InvalidGitRepositoryError
-
+from git.config import GitConfigParser
+from git_lock_sign_jlx.logger_util import default_logger_config
 
 logger = logging.getLogger(__name__)
-
+default_logger_config(logger)
 
 class UserService:
     """Service for managing git user information."""
@@ -112,16 +113,16 @@ class UserService:
         except Exception as e:
             logger.error(f"Error executing git config: {str(e)}")
             return None
-    
-    def _get_global_git_config(self) -> Optional[Dict[str, str]]:
+    def _get_global_git_config(self) -> Optional[Dict[str, Any]]:
         """Get user info from global git configuration (legacy method)."""
         try:
             # Use GitPython to read global config
-            config_reader = git.GitConfigParser([git.config.get_config_path('global')], read_only=True)
-            
-            name = config_reader.get_value('user', 'name', fallback=None)
-            email = config_reader.get_value('user', 'email', fallback=None)
-            
+            global_config_path = os.path.normpath(os.path.expanduser("~/.gitconfig"))
+            config_reader = git.GitConfigParser([global_config_path], read_only=True)
+
+            name = config_reader.get_value('user', 'name', default=None)
+            email = config_reader.get_value('user', 'email', default=None)
+
             if name and email:
                 return {
                     'name': name,
@@ -134,7 +135,7 @@ class UserService:
             logger.debug(f"Could not read global git config: {str(e)}")
             return None
     
-    def _get_local_git_config(self) -> Optional[Dict[str, str]]:
+    def _get_local_git_config(self) -> Optional[Dict[str, Any]]:
         """Get user info from local repository git configuration (legacy method)."""
         try:
             # Try to find a git repository in current working directory or parent directories
@@ -143,8 +144,8 @@ class UserService:
             # Get user info from repository config
             config_reader = repo.config_reader()
             
-            name = config_reader.get_value('user', 'name', fallback=None)
-            email = config_reader.get_value('user', 'email', fallback=None)
+            name = config_reader.get_value('user', 'name', default=None)
+            email = config_reader.get_value('user', 'email', default=None)
             
             if name and email:
                 return {

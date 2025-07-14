@@ -8,9 +8,11 @@ import logging
 import os
 from datetime import datetime
 from typing import Any, Dict, Optional
+from git_lock_sign_jlx.logger_util import default_logger_config
 
 
 logger = logging.getLogger(__name__)
+default_logger_config(logger)
 
 
 class NotebookService:
@@ -48,26 +50,63 @@ class NotebookService:
             logger.error(f"Error generating content hash: {str(e)}")
             raise
     
-    def _prepare_content_for_hashing(self, notebook_content: Dict[str, Any]) -> Dict[str, Any]:
+    def _prepare_content_for_hashing(self, notebook_content: Dict[str, Any]) -> Any:
         """
-        Prepare notebook content for consistent hashing by removing signature metadata.
-        
+        Prepare notebook content for consistent hashing by extracting only the essential,
+        user-generated content: cell source and outputs. This makes the hash immune
+        to any metadata changes.
+
         Args:
-            notebook_content: Original notebook content
-            
+            notebook_content: Original notebook content as a dictionary.
+
         Returns:
-            Cleaned notebook content for hashing
+            A simplified, clean data structure (list of dicts) for hashing.
         """
-        # Create a deep copy to avoid modifying original
-        import copy
-        content_copy = copy.deepcopy(notebook_content)
+        logger.info("NotebookService: Preparing content for hashing based on cell source and outputs.")
         
-        # Remove git_lock_sign metadata if it exists
-        if 'metadata' in content_copy:
-            if 'git_lock_sign' in content_copy['metadata']:
-                del content_copy['metadata']['git_lock_sign']
-        
-        return content_copy
+        if 'cells' not in notebook_content or not isinstance(notebook_content['cells'], list):
+            logger.warning("NotebookService: 'cells' key not found or not a list. Hashing the entire content as a fallback.")
+            return notebook_content
+
+        essential_content = []
+        for i, cell in enumerate(notebook_content['cells']):
+            if not isinstance(cell, dict):
+                logger.warning(f"NotebookService: Item at cell index {i} is not a dictionary, skipping.")
+                continue
+
+            cell_data = {}
+
+            # 1. Add the cell's source code
+            cell_data['source'] = cell.get('source', '')
+
+            # 2. Add the cell's outputs, normalizing volatile parts
+            outputs = cell.get('outputs', [])
+            if outputs and isinstance(outputs, list):
+                # Create a deep copy to avoid modifying the original notebook object
+                import copy
+                cleaned_outputs = copy.deepcopy(outputs)
+                
+                for output in cleaned_outputs:
+                    if not isinstance(output, dict):
+                        continue
+                    # Normalize execution_count as it's highly volatile
+                    if 'execution_count' in output:
+                        output['execution_count'] = None
+                    # Remove transient metadata that can change between sessions
+                    if 'transient' in output:
+                        del output['transient']
+                    if 'metadata' in output:
+                        # Clear output metadata as it can contain session-specific info
+                        output['metadata'] = {}
+                
+                cell_data['outputs'] = cleaned_outputs
+            else:
+                cell_data['outputs'] = []
+            
+            essential_content.append(cell_data)
+            
+        logger.info(f"NotebookService: Prepared essential content from {len(essential_content)} cells for hashing.")
+        return essential_content
     
     def get_signature_metadata(self, notebook_content: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """

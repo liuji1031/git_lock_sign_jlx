@@ -9,6 +9,8 @@ export interface ISignatureMetadata {
   user_email: string;
   timestamp: string;
   content_hash: string;
+  unlocked_by_user_name?: string;
+  unlock_timestamp?: string;
 }
 
 export interface IUserInfo {
@@ -48,7 +50,10 @@ export interface IUnlockNotebookRequest {
 }
 
 export interface IUnlockNotebookResponse extends IApiResponse {
-  // No additional fields needed
+  metadata?: ISignatureMetadata;
+  commit_hash?: string;
+  signature_verification_passed?: boolean;
+  was_gpg_signed?: boolean;
 }
 
 export interface IUserInfoResponse extends IApiResponse {

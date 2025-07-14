@@ -1,6 +1,7 @@
 @import url('base.css');
 @import url('user-info.css');
 @import url('commit-button.css');
+@import url('notification.css');
 
 /* Git Lock Sign Extension Styles */
 
@@ -73,10 +74,74 @@
 .git-lock-sign-locked .jp-InputArea-editor {
   background: var(--jp-layout-color3) !important;
   cursor: not-allowed !important;
+  pointer-events: none !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
 }
 
 .git-lock-sign-locked .jp-OutputArea {
   background: var(--jp-layout-color2) !important;
+}
+
+/* CodeMirror specific read-only enforcement */
+.git-lock-sign-locked .CodeMirror {
+  pointer-events: none !important;
+  cursor: not-allowed !important;
+  background: var(--jp-layout-color3) !important;
+}
+
+.git-lock-sign-locked .CodeMirror-cursor {
+  display: none !important;
+}
+
+.git-lock-sign-locked .CodeMirror-focused .CodeMirror-cursor {
+  display: none !important;
+}
+
+.git-lock-sign-locked .CodeMirror-line {
+  cursor: not-allowed !important;
+  user-select: none !important;
+}
+
+/* Disable text selection and editing in locked cells */
+.git-lock-sign-locked * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+}
+
+/* Disable input elements in locked cells */
+.git-lock-sign-locked input,
+.git-lock-sign-locked textarea,
+.git-lock-sign-locked [contenteditable] {
+  pointer-events: none !important;
+  cursor: not-allowed !important;
+  background: var(--jp-layout-color3) !important;
+  opacity: 0.7 !important;
+}
+
+/* Prevent focus on locked cell editors */
+.git-lock-sign-locked .jp-InputArea-editor:focus,
+.git-lock-sign-locked .CodeMirror:focus,
+.git-lock-sign-locked .CodeMirror-focused {
+  outline: none !important;
+  border: none !important;
+}
+
+/* Visual indication that cell is read-only */
+.git-lock-sign-locked::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 193, 7, 0.1);
+  pointer-events: none;
+  z-index: 1;
 }
 
 /* Lock indicator styling */

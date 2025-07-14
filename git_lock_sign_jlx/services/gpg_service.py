@@ -7,9 +7,10 @@ import tempfile
 from typing import Optional
 
 import gnupg
-
+from git_lock_sign_jlx.logger_util import default_logger_config
 
 logger = logging.getLogger(__name__)
+default_logger_config(logger)
 
 
 class GPGService:
@@ -198,3 +199,96 @@ class GPGService:
         except Exception as e:
             logger.error(f"Error checking for signing keys: {str(e)}")
             return False
+    
+    def can_sign_with_key(self, key_id: str) -> bool:
+        """
+        Test if the user can actually sign content with a specific GPG key.
+        
+        Args:
+            key_id: The GPG key ID to test
+            
+        Returns:
+            True if the user can sign with this key, False otherwise
+        """
+        try:
+            logger.info(f"GPGService: Testing signing capability with key: {key_id}")
+            
+            # Check if the key exists in secret keys
+            secret_keys = self.gpg.list_keys(True)  # True for secret keys
+            key_found = False
+            
+            for key in secret_keys:
+                # Check both keyid and fingerprint (key_id might be either)
+                if key['keyid'] == key_id or key['fingerprint'].endswith(key_id.upper()):
+                    key_found = True
+                    logger.info(f"GPGService: Found secret key - keyid: {key['keyid']}, fingerprint: {key['fingerprint']}")
+                    break
+            
+            if not key_found:
+                logger.error(f"GPGService: Key {key_id} not found in secret keys")
+                return False
+            
+            # Try to sign a test message with the specific key
+            test_content = "test_signing_capability"
+            logger.info(f"GPGService: Attempting to sign test content with key {key_id}")
+            
+            signed_data = self.gpg.sign(
+                test_content,
+                keyid=key_id,
+                detach=True,
+                clearsign=False
+            )
+            
+            if signed_data.status == 'signature created':
+                logger.info(f"GPGService: ✅ Successfully signed test content with key {key_id}")
+                return True
+            else:
+                logger.error(f"GPGService: ❌ Failed to sign test content with key {key_id}: {signed_data.status}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"GPGService: Error testing signing capability with key {key_id}: {str(e)}")
+            return False
+    
+    def get_configured_signing_key(self) -> Optional[str]:
+        """
+        Get the currently configured git signing key from git config.
+        
+        Returns:
+            The configured signing key ID, or None if not configured
+        """
+        try:
+            import subprocess
+            
+            # Try local config first
+            result = subprocess.run(
+                ['git', 'config', 'user.signingkey'],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            
+            if result.returncode == 0 and result.stdout.strip():
+                key_id = result.stdout.strip()
+                logger.info(f"GPGService: Found LOCAL git signing key: {key_id}")
+                return key_id
+            
+            # Try global config
+            result = subprocess.run(
+                ['git', 'config', '--global', 'user.signingkey'],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            
+            if result.returncode == 0 and result.stdout.strip():
+                key_id = result.stdout.strip()
+                logger.info(f"GPGService: Found GLOBAL git signing key: {key_id}")
+                return key_id
+            
+            logger.warning("GPGService: No git signing key configured")
+            return None
+            
+        except Exception as e:
+            logger.error(f"GPGService: Error getting configured signing key: {str(e)}")
+            return None

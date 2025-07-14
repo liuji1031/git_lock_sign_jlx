@@ -5,20 +5,12 @@ Service for git operations including commit signing and verification.
 import logging
 import os
 import subprocess
-from datetime import datetime
-from typing import Dict, Optional, Tuple
-import sys
-import git
+from typing import Dict, Optional, Tuple, Any
 from git import Repo, InvalidGitRepositoryError
-
+from git_lock_sign_jlx.logger_util import default_logger_config
 
 logger = logging.getLogger(__name__)
-
-logger.setLevel(logging.INFO) # Or logging.DEBUG for more verbose output
-handler = logging.StreamHandler(sys.stdout)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-handler.setFormatter(formatter)
-logger.addHandler(handler)
+default_logger_config(logger)
 
 
 class GitService:
@@ -94,8 +86,8 @@ class GitService:
             logger.info(f"=== GitService.commit_and_sign_file called ===")
             logger.info(f"GitService: file_path = {file_path}")
             logger.info(f"GitService: commit_message = {commit_message}")
-            
-            repo = self.get_repository(file_path)
+
+            repo: Repo | None = self.get_repository(file_path)
             if not repo:
                 logger.error("GitService: File is not in a git repository")
                 return False, None, "File is not in a git repository"
@@ -115,7 +107,7 @@ class GitService:
             logger.info("GitService: File exists, proceeding with commit...")
             
             # Try to commit with GPG signature using subprocess for better control
-            commit_hash, signed = self._commit_with_subprocess(repo_root, rel_path, commit_message)
+            commit_hash, signed = self._commit_with_subprocess(str(repo_root), rel_path, commit_message)
             
             if commit_hash:
                 logger.info(f"GitService: Successfully committed file: {rel_path}, commit: {commit_hash}, signed: {signed}")
@@ -153,7 +145,7 @@ class GitService:
             
             # Use git command to verify signature
             # GitPython doesn't have built-in signature verification
-            result = self._verify_commit_signature_cmd(repo.working_dir, commit_hash)
+            result = self._verify_commit_signature_cmd(str(repo.working_dir), commit_hash)
             
             if result:
                 logger.info(f"Commit signature verified successfully: {commit_hash}")
@@ -166,7 +158,7 @@ class GitService:
             logger.error(error_msg)
             return False, error_msg
     
-    def get_commit_info(self, file_path: str, commit_hash: str) -> Optional[Dict[str, str]]:
+    def get_commit_info(self, file_path: str, commit_hash: str) -> Optional[Dict[str, Any]]:
         """
         Get information about a git commit.
         
@@ -191,7 +183,7 @@ class GitService:
                 'author_name': commit.author.name,
                 'author_email': commit.author.email,
                 'timestamp': commit.committed_datetime.isoformat(),
-                'signed': self._is_commit_signed(repo.working_dir, commit_hash)
+                'signed': self._is_commit_signed(str(repo.working_dir), commit_hash)
             }
             
         except Exception as e:
@@ -555,7 +547,7 @@ class GitService:
                 return False, None, "File is not in a git repository"
             
             # Get relative path from repo root
-            repo_root = repo.working_dir
+            repo_root = str(repo.working_dir)
             rel_path = os.path.relpath(file_path, repo_root)
             
             logger.info(f"GitService: repo_root = {repo_root}")
@@ -637,7 +629,110 @@ class GitService:
             logger.error(f"GitService: {error_msg}")
             return False, None, error_msg
 
-    def get_repository_status(self, file_path: str) -> Dict[str, any]:
+    def get_commit_signing_key_id(self, file_path: str, commit_hash: str) -> Optional[str]:
+        """
+        Extract the GPG key ID that was used to sign a specific commit.
+        
+        Args:
+            file_path: Path to file in repository
+            commit_hash: Hash of commit to check
+            
+        Returns:
+            GPG key ID that signed the commit, or None if not signed or error
+        """
+        try:
+            repo = self.get_repository(file_path)
+            if not repo:
+                logger.error("GitService: File is not in a git repository")
+                return None
+            
+            repo_path = str(repo.working_dir)
+            logger.info(f"GitService: Extracting signing key ID from commit {commit_hash}")
+            
+            # Use git show command to get signature information
+            result = subprocess.run(
+                ['git', 'show', '--show-signature', '--format=%GK', '-s', commit_hash],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            
+            logger.info(f"GitService: git show --format=%GK return code: {result.returncode}")
+            logger.info(f"GitService: git show --format=%GK stdout: {result.stdout!r}")
+            logger.info(f"GitService: git show --format=%GK stderr: {result.stderr!r}")
+            
+            if result.returncode == 0:
+                # %GK format returns the key ID used for signing
+                lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+                logger.info(f"GitService: Parsed lines from git show: {lines}")
+                
+                # Look for a line that looks like a key ID (typically 16 hex characters)
+                for line in lines:
+                    # GPG key IDs are typically 8 or 16 hex characters
+                    if len(line) >= 8 and all(c in '0123456789ABCDEFabcdef' for c in line):
+                        logger.info(f"GitService: Found signing key ID: {line}")
+                        return line
+                
+                logger.warning(f"GitService: No key ID found in git show output for commit {commit_hash}")
+                return None
+            else:
+                logger.error(f"GitService: git show failed with return code {result.returncode}")
+                return None
+                
+        except subprocess.TimeoutExpired:
+            logger.error("GitService: git show command timed out")
+            return None
+        except Exception as e:
+            logger.error(f"GitService: Error extracting signing key ID: {str(e)}")
+            return None
+
+    def rollback_last_commit(self, file_path: str) -> Tuple[bool, Optional[str]]:
+        """
+        Rollback the last commit in the repository.
+        
+        Args:
+            file_path: Path to file in repository
+            
+        Returns:
+            Tuple of (success, error_message)
+        """
+        try:
+            repo = self.get_repository(file_path)
+            if not repo:
+                return False, "File is not in a git repository"
+            
+            repo_path = str(repo.working_dir)
+            logger.info(f"GitService: Rolling back last commit in {repo_path}")
+            
+            # Use git reset --hard HEAD~1 to rollback the last commit
+            result = subprocess.run(
+                ['git', 'reset', '--hard', 'HEAD~1'],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            
+            logger.info(f"GitService: git reset return code: {result.returncode}")
+            logger.info(f"GitService: git reset stdout: {result.stdout}")
+            logger.info(f"GitService: git reset stderr: {result.stderr}")
+            
+            if result.returncode == 0:
+                logger.info("GitService: Successfully rolled back last commit")
+                return True, None
+            else:
+                logger.error(f"GitService: Failed to rollback commit: {result.stderr}")
+                return False, f"Failed to rollback commit: {result.stderr}"
+                
+        except subprocess.TimeoutExpired:
+            logger.error("GitService: git reset command timed out")
+            return False, "Git reset command timed out"
+        except Exception as e:
+            logger.error(f"GitService: Error rolling back commit: {str(e)}")
+            return False, f"Error rolling back commit: {str(e)}"
+
+    def get_repository_status(self, file_path: str) -> Dict[str, Any]:
         """
         Get comprehensive repository status.
         
@@ -655,11 +750,11 @@ class GitService:
                     'error': 'Not in a git repository'
                 }
             
-            gpg_configured, signing_key, config_source = self._is_gpg_signing_configured(repo.working_dir)
+            gpg_configured, signing_key, config_source = self._is_gpg_signing_configured(str(repo.working_dir))
             
             return {
                 'is_git_repo': True,
-                'repo_path': repo.working_dir,
+                'repo_path': str(repo.working_dir),
                 'current_branch': repo.active_branch.name,
                 'is_dirty': repo.is_dirty(),
                 'untracked_files': len(repo.untracked_files),

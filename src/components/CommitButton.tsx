@@ -199,14 +199,33 @@ const CommitButtonComponent: React.FC<ICommitButtonProps> = ({
    */
   const reloadNotebook = async (): Promise<void> => {
     try {
-      console.log('Reloading notebook to sync with backend metadata changes...');
+      console.log('🔄 [Git Lock Sign] STARTING notebook reload to sync with backend metadata changes...');
+      console.log('🔄 [Git Lock Sign] Notebook path:', notebookPanel.context.path);
       
-      // Use JupyterLab's context to reload the notebook from disk
-      await notebookPanel.context.revert();
+      // Try multiple reload approaches
+      try {
+        // Method 1: Use context.revert() to reload from disk
+        console.log('🔄 [Git Lock Sign] Attempting context.revert()...');
+        await notebookPanel.context.revert();
+        console.log('✅ [Git Lock Sign] context.revert() completed successfully');
+      } catch (revertError) {
+        console.warn('⚠️ [Git Lock Sign] context.revert() failed, trying alternative method:', revertError);
+        
+        // Method 2: Try context.reload() if available
+        if ('reload' in notebookPanel.context && typeof notebookPanel.context.reload === 'function') {
+          console.log('🔄 [Git Lock Sign] Attempting context.reload()...');
+          await (notebookPanel.context as any).reload();
+          console.log('✅ [Git Lock Sign] context.reload() completed successfully');
+        } else {
+          console.warn('⚠️ [Git Lock Sign] context.reload() not available');
+          throw revertError;
+        }
+      }
       
-      console.log('Notebook reloaded successfully');
+      console.log('✅ [Git Lock Sign] Notebook reloaded successfully - metadata should now be synchronized');
     } catch (error) {
-      console.warn('Failed to reload notebook, but operation was successful:', error);
+      console.error('❌ [Git Lock Sign] Failed to reload notebook, but git operation was successful:', error);
+      console.log('ℹ️ [Git Lock Sign] You may see a "file has changed" popup - this is expected if reload failed');
       // Don't throw error - the operation was successful, reload is just for UX
     }
   };
