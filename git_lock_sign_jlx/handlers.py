@@ -539,7 +539,7 @@ class UnlockNotebookHandler(BaseGitLockSignHandler):
                     
                     if user_matches:
                         # Safe to show truncated key ID since user identity matches
-                        short_key_id = original_signing_key_id[-8:] if len(original_signing_key_id) > 8 else original_signing_key_id
+                        short_key_id = original_signing_key_id[-4:] if len(original_signing_key_id) > 4 else original_signing_key_id
                         error_msg = (f"Cannot unlock GPG-signed notebook: No git signing key configured. "
                                    f"Please configure a GPG key ending in {short_key_id} with: "
                                    f"git config user.signingkey [YOUR_KEY_ID]")
@@ -601,7 +601,7 @@ class UnlockNotebookHandler(BaseGitLockSignHandler):
                     
                     if user_matches:
                         # Safe to show truncated key ID since user identity matches
-                        short_key_id = original_signing_key_id[-8:] if len(original_signing_key_id) > 8 else original_signing_key_id
+                        short_key_id = original_signing_key_id[-4:] if len(original_signing_key_id) > 4 else original_signing_key_id
                         error_msg = (f"Cannot unlock GPG-signed notebook: You do not have the private key ending in {short_key_id} "
                                    f"required to unlock this notebook. Please ensure you have access to the correct GPG private key.")
                     else:
