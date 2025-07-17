@@ -164,41 +164,6 @@ class NotebookService:
             logger.error(f"Error saving signature metadata: {str(e)}")
             return False
     
-    def remove_signature_metadata(
-        self, 
-        notebook_path: str, 
-        notebook_content: Dict[str, Any]
-    ) -> bool:
-        """
-        Remove signature metadata from notebook file.
-        
-        Args:
-            notebook_path: Path to notebook file
-            notebook_content: Current notebook content
-            
-        Returns:
-            True if successful, False otherwise
-        """
-        try:
-            # Create a copy of notebook content
-            import copy
-            updated_content = copy.deepcopy(notebook_content)
-            
-            # Remove signature metadata if it exists
-            if 'metadata' in updated_content:
-                if 'git_lock_sign' in updated_content['metadata']:
-                    del updated_content['metadata']['git_lock_sign']
-            
-            # Save the updated notebook
-            self._save_notebook_file(notebook_path, updated_content)
-            
-            logger.info(f"Signature metadata removed from {notebook_path}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error removing signature metadata: {str(e)}")
-            return False
-    
     def _save_notebook_file(self, notebook_path: str, notebook_content: Dict[str, Any]):
         """
         Save notebook content to file.
@@ -243,57 +208,6 @@ class NotebookService:
         """
         return datetime.utcnow().isoformat() + 'Z'
     
-    def validate_notebook_content(self, notebook_content: Any) -> bool:
-        """
-        Validate that content is a valid notebook structure.
-        
-        Args:
-            notebook_content: Content to validate
-            
-        Returns:
-            True if valid notebook structure, False otherwise
-        """
-        try:
-            if not isinstance(notebook_content, dict):
-                return False
-            
-            # Check for required notebook fields
-            required_fields = ['cells', 'metadata', 'nbformat', 'nbformat_minor']
-            for field in required_fields:
-                if field not in notebook_content:
-                    return False
-            
-            # Check that cells is a list
-            if not isinstance(notebook_content['cells'], list):
-                return False
-            
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error validating notebook content: {str(e)}")
-            return False
-    
-    def is_notebook_locked(self, notebook_content: Dict[str, Any]) -> bool:
-        """
-        Check if notebook is currently locked.
-        
-        Args:
-            notebook_content: Notebook content to check
-            
-        Returns:
-            True if locked, False otherwise
-        """
-        try:
-            signature_metadata = self.get_signature_metadata(notebook_content)
-            if not signature_metadata:
-                return False
-            
-            return signature_metadata.get('locked', False)
-            
-        except Exception as e:
-            logger.error(f"Error checking lock status: {str(e)}")
-            return False
-    
     def save_notebook_content(self, notebook_path: str, notebook_content: Dict[str, Any]) -> bool:
         """
         Save notebook content to file without modifying metadata.
@@ -313,30 +227,3 @@ class NotebookService:
         except Exception as e:
             logger.error(f"Error saving notebook content: {str(e)}")
             return False
-
-    def get_signature_info(self, notebook_content: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """
-        Get signature information for display purposes.
-        
-        Args:
-            notebook_content: Notebook content
-            
-        Returns:
-            Dictionary with signature info, or None if not signed
-        """
-        try:
-            signature_metadata = self.get_signature_metadata(notebook_content)
-            if not signature_metadata:
-                return None
-            
-            return {
-                'locked': signature_metadata.get('locked', False),
-                'user_name': signature_metadata.get('user_name'),
-                'user_email': signature_metadata.get('user_email'),
-                'timestamp': signature_metadata.get('timestamp'),
-                'has_signature': bool(signature_metadata.get('signature'))
-            }
-            
-        except Exception as e:
-            logger.error(f"Error getting signature info: {str(e)}")
-            return None

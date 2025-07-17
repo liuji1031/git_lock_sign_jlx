@@ -190,66 +190,6 @@ class GitService:
             logger.error(f"Error getting commit info: {str(e)}")
             return None
     
-    def get_file_last_commit(self, file_path: str) -> Optional[str]:
-        """
-        Get the hash of the last commit that modified a file.
-        
-        Args:
-            file_path: Path to file
-            
-        Returns:
-            Commit hash, or None if error
-        """
-        try:
-            repo = self.get_repository(file_path)
-            if not repo:
-                return None
-            
-            # Get relative path from repo root
-            repo_root = repo.working_dir
-            rel_path = os.path.relpath(file_path, repo_root)
-            
-            # Get commits that modified this file
-            commits = list(repo.iter_commits(paths=rel_path, max_count=1))
-            
-            if commits:
-                return commits[0].hexsha
-            else:
-                return None
-                
-        except Exception as e:
-            logger.error(f"Error getting last commit for file: {str(e)}")
-            return None
-    
-    def is_file_modified(self, file_path: str) -> bool:
-        """
-        Check if file has uncommitted changes.
-        
-        Args:
-            file_path: Path to file
-            
-        Returns:
-            True if file has uncommitted changes, False otherwise
-        """
-        try:
-            repo = self.get_repository(file_path)
-            if not repo:
-                return False
-            
-            # Get relative path from repo root
-            repo_root = repo.working_dir
-            rel_path = os.path.relpath(file_path, repo_root)
-            
-            # Check if file is in modified files
-            modified_files = [item.a_path for item in repo.index.diff(None)]
-            untracked_files = repo.untracked_files
-            
-            return rel_path in modified_files or rel_path in untracked_files
-            
-        except Exception as e:
-            logger.error(f"Error checking file modification status: {str(e)}")
-            return False
-    
     def _is_gpg_signing_configured(self, repo_path: str) -> Tuple[bool, Optional[str], str]:
         """
         Check if GPG signing is configured for the repository using git command line.

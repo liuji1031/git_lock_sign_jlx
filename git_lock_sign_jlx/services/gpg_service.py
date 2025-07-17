@@ -135,42 +135,6 @@ class GPGService:
             logger.error(f"Error getting default GPG key: {str(e)}")
             return None
     
-    def get_key_info(self, key_id: Optional[str] = None) -> Optional[dict]:
-        """
-        Get information about a GPG key.
-        
-        Args:
-            key_id: Key ID to get info for, or None for default key
-            
-        Returns:
-            Dictionary with key information, or None if not found
-        """
-        try:
-            if not key_id:
-                key_id = self._get_default_key()
-                if not key_id:
-                    return None
-            
-            # Get key information
-            keys = self.gpg.list_keys(True)  # Secret keys
-            for key in keys:
-                if key['keyid'] == key_id:
-                    return {
-                        'keyid': key['keyid'],
-                        'fingerprint': key['fingerprint'],
-                        'uids': key['uids'],
-                        'length': key['length'],
-                        'algo': key['algo'],
-                        'expires': key['expires'],
-                        'trust': key['trust']
-                    }
-            
-            return None
-            
-        except Exception as e:
-            logger.error(f"Error getting key info: {str(e)}")
-            return None
-    
     def is_gpg_available(self) -> bool:
         """
         Check if GPG is available and working.
