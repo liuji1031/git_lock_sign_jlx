@@ -1,97 +1,67 @@
 # git_lock_sign_jlx
 
-[![Github Actions Status](https://github.com/liuji1031/git_lock_sign_jlx/workflows/Build/badge.svg)](https://github.com/liuji1031/git_lock_sign_jlx/actions/workflows/build.yml)
 
-A JupyterLab extension to let the user sign and lock jupyter notebook (or cells) with git commit signatures.
+A JupyterLab extension to let the user sign and lock jupyter notebook with git commit signatures.
 
-## Requirements
+## Setup
 
-- JupyterLab >= 4.0.0
-
-## Install
-
-To install the extension, execute:
-
+1. Create and activate conda environment
 ```bash
-pip install git_lock_sign_jlx
+conda create -n jlx --override-channels --strict-channel-priority -c conda-forge -c nodefaults jupyterlab=4 nodejs=18 git copier=7 jinja2-time
+conda activate jlx
 ```
 
-## Uninstall
-
-To remove the extension, execute:
-
+2. Install dependencies
 ```bash
-pip uninstall git_lock_sign_jlx
+jlpm install
 ```
 
-## Contributing
-
-### Development install
-
-Note: You will need NodeJS to build the extension package.
-
-The `jlpm` command is JupyterLab's pinned version of
-[yarn](https://yarnpkg.com/) that is installed with JupyterLab. You may use
-`yarn` or `npm` in lieu of `jlpm` below.
-
+3. Build extension
 ```bash
-# Clone the repo to your local environment
-# Change directory to the git_lock_sign_jlx directory
-# Install package in development mode
-pip install -e "."
-# Link your development version of the extension with JupyterLab
-jupyter labextension develop . --overwrite
-# Rebuild extension Typescript source after making changes
 jlpm build
 ```
 
-You can watch the source directory and run JupyterLab at the same time in different terminals to watch for changes in the extension's source and automatically rebuild the extension.
-
+4. Install the extension
 ```bash
-# Watch the source directory in one terminal, automatically rebuilding when needed
-jlpm watch
-# Run JupyterLab in another terminal
-jupyter lab
+jupyter labextension develop --overwrite ./
 ```
 
-With the watch command running, every saved change will immediately be built locally and available in your running JupyterLab. Refresh JupyterLab to load the change in your browser (you may need to wait several seconds for the extension to be rebuilt).
-
-By default, the `jlpm build` command generates the source maps for this extension to make it easier to debug using the browser dev tools. To also generate source maps for the JupyterLab core extensions, you can run the following command:
-
+5. Confirm installation
 ```bash
-jupyter lab build --minimize=False
+jupyter labextension list
 ```
 
-### Development uninstall
+## Run JupyterLab with the extension
 
+1. Initialize an empty git repository
 ```bash
-pip uninstall git_lock_sign_jlx
+cd </path/to/your/project>
+git init
 ```
 
-In development mode, you will also need to remove the symlink created by `jupyter labextension develop`
-command. To find its location, you can run `jupyter labextension list` to figure out where the `labextensions`
-folder is located. Then you can remove the symlink named `git_lock_sign_jlx` within that folder.
-
-### Testing the extension
-
-#### Frontend tests
-
-This extension is using [Jest](https://jestjs.io/) for JavaScript code testing.
-
-To execute them, execute:
-
-```sh
-jlpm
-jlpm test
+2. Set up git user, email and signing key
+```bash
+git config user.name "Your Name"
+git config user.email "your.email@example.com"
+git config user.signingkey "your-gpg-key-id"
 ```
 
-#### Integration tests
+3. Start JupyterLab with the extension
+```bash
+conda activate jlx
+jupyter lab --log-level=INFO --ServerApp.jpserver_extensions="{'git_lock_sign_jlx': True}"
+```
 
-This extension uses [Playwright](https://playwright.dev/docs/intro) for the integration tests (aka user level tests).
-More precisely, the JupyterLab helper [Galata](https://github.com/jupyterlab/jupyterlab/tree/master/galata) is used to handle testing the extension in JupyterLab.
+## Functionalities
 
-More information are provided within the [ui-tests](./ui-tests/README.md) README.
+### `Commit` button
 
-### Packaging the extension
+When the user clicks the `Commit` button, the extension will show a new popup window to let the user enter the commit message to commit the new changes made to the notebook.
 
-See [RELEASE](RELEASE.md)
+### `Lock` button
+
+When the user clicks the `Lock` button, the extension will show a new popup window to let the user enter the lock message to lock the notebook. The lock functionality requires that the user has a GPG signing key set up in the git config.
+
+After a successful lock, the button will show "Unlock" instead. Unlocking requires the same user name, email and GPG signing key configured in the terminal.
+
+After locking, the cells become read-only. All other cell manipulations are disabled as well, e.g., moving cells up/down, deleting cells, etc.
